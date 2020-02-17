@@ -5,7 +5,7 @@ chardet==3.0.4            # via requests
 colorama==0.4.3
 cryptography==2.8
 enum34==1.1.6             # via cryptography
-idna==2.8                 # via requests
+idna==2.9                 # via requests
 ipaddress==1.0.23         # via cryptography
 iso8601==0.1.12
 pycparser==2.19           # via cffi
