@@ -20,16 +20,19 @@ from typing import Any, Dict, Mapping, Optional
 
 import tempfile
 
+from securesystemslib.formats import ANY_STRING_SCHEMA
 from securesystemslib.util import persist_temp_file
 from securesystemslib.storage import (StorageBackendInterface,
                                       FilesystemBackend)
 from securesystemslib.keys import create_signature, verify_signature
+from securesystemslib.exceptions import FormatError
 
 from tuf.api.serialization import (MetadataSerializer, MetadataDeserializer,
                                    SignedSerializer)
 
 import tuf.formats
 import tuf.exceptions
+from tuf.api.validation import ValidationMixin
 
 
 class Metadata():
@@ -266,7 +269,7 @@ class Metadata():
             signed_serializer.serialize(self.signed))
 
 
-class Signed:
+class Signed(ValidationMixin):
     """A base class for the signed part of TUF metadata.
 
     Objects with base class Signed are usually included in a Metadata object
@@ -297,6 +300,24 @@ class Signed:
         if version < 0:
             raise ValueError(f'version must be < 0, got {version}')
         self.version = version
+
+    def _validate_type(self):
+        """Private method to validate the "_type" attribute. """
+        ANY_STRING_SCHEMA.check_match(self._type)
+
+    def _validate_version(self):
+        """Private method to validate the "version" attribute. """
+        tuf.formats.METADATAVERSION_SCHEMA.check_match(self.version)
+
+    def _validate_spec_version(self):
+        """Private method to validate the "spec_version" attribute. """
+        tuf.formats.SPECIFICATION_VERSION_SCHEMA.check_match(self.spec_version)
+
+    def _validate_expires(self):
+        """Private method to validate the "expires" attribute. """
+        if not isinstance(self.expires, datetime):
+            message = repr(self.expires) + ' is not a datetime.datetime() object.'
+            raise FormatError(message)
 
     @staticmethod
     def _common_fields_from_dict(signed_dict: Mapping[str, Any]) -> list:
