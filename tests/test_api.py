@@ -330,6 +330,21 @@ class TestMetadata(unittest.TestCase):
         # Verify that data is updated
         self.assertEqual(targets.signed.targets[filename], fileinfo)
 
+
+    def test_validation(self):
+        root_path = os.path.join(
+                self.repo_dir, 'metadata', 'root.json')
+        root = Metadata.from_file(root_path)
+
+        for val in [212, '', '1.11', None, '2', True]:
+            # Verify that "Signed.validate_spec_version()" is called and returns
+            # a ValueError on wrong input.
+            with self.assertRaises(ValueError):
+                root.signed.change_spec_version(val)
+
+            with self.assertRaises(ValueError):
+                root.signed.spec_version = val
+
 # Run unit test.
 if __name__ == '__main__':
     utils.configure_test_logging(sys.argv)

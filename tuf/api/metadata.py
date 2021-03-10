@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Mapping, Optional
 
 import tempfile
+import pydantic
 
 from securesystemslib.keys import verify_signature
 from securesystemslib.util import persist_temp_file
@@ -274,7 +275,7 @@ class Metadata():
             signed_serializer.serialize(self.signed))
 
 
-class Signed:
+class Signed(pydantic.BaseModel):
     """A base class for the signed part of TUF metadata.
 
     Objects with base class Signed are usually included in a Metadata object
@@ -292,19 +293,60 @@ class Signed:
     # NOTE: Signed is a stupid name, because this might not be signed yet, but
     # we keep it to match spec terminology (I often refer to this as "payload",
     # or "inner metadata")
+    version: int
+    spec_version: str
+    expires: datetime
+    # pydantic limitation: class attibutes with "_" should be PrivateAttr
+    # https://github.com/samuelcolvin/pydantic/pull/1679#issue-443664516
+    _type: str = pydantic.PrivateAttr()
+
+    class Config:
+        validate_assignment = True
+
     def __init__(
             self, _type: str, version: int, spec_version: str,
-            expires: datetime) -> None:
+            expires: datetime, additional_kwarg: Dict = {}) -> None:
 
+        super().__init__(version=version, spec_version=spec_version,
+                expires=expires, **additional_kwarg)
+        # Because _type is a PrivateArr it should be initialized in the
+        # "Signed" constructor instead of the "BaseModel" constructor.
         self._type = _type
-        self.version = version
-        self.spec_version = spec_version
-        self.expires = expires
 
-        # TODO: Should we separate data validation from constructor?
-        if version < 0:
+
+    @pydantic.validator('version')
+    def validate_version(cls, version: int):
+        if not isinstance(version, int) or version < 0:
             raise ValueError(f'version must be < 0, got {version}')
-        self.version = version
+
+        return version
+
+
+    @pydantic.validator('spec_version')
+    def validate_spec_version(cls, spec_version: str):
+        if not isinstance(spec_version, str):
+            raise ValueError(f'spec version should be a string!')
+
+        spec_version_split = spec_version.split('.')
+        if len(spec_version_split) != 3:
+            raise ValueError(f'spec_version should be in semantic versioning'
+                f' format.')
+
+        spec_major_version = int(spec_version_split[0])
+        code_spec_version_split = tuf.SPECIFICATION_VERSION.split('.')
+        code_spec_major_version = int(code_spec_version_split[0])
+
+        if spec_major_version != code_spec_major_version:
+            raise ValueError(f'version must be {code_spec_major_version},'
+                f'got {spec_major_version}')
+
+        return spec_version
+
+
+    @pydantic.validate_arguments()
+    def change_spec_version(self, new_spec_ver: str):
+        self.spec_version = new_spec_ver
+
 
     @staticmethod
     def _common_fields_from_dict(signed_dict: Mapping[str, Any]) -> list:
@@ -382,6 +424,9 @@ class Root(Signed):
             }
 
     """
+    consistent_snapshot: bool
+    keys: Dict
+    roles: Dict
     # TODO: determine an appropriate value for max-args and fix places where
     # we violate that. This __init__ function takes 7 arguments, whereas the
     # default max-args value for pylint is 5
@@ -390,11 +435,14 @@ class Root(Signed):
             self, _type: str, version: int, spec_version: str,
             expires: datetime, consistent_snapshot: bool,
             keys: Mapping[str, Any], roles: Mapping[str, Any]) -> None:
-        super().__init__(_type, version, spec_version, expires)
+
         # TODO: Add classes for keys and roles
-        self.consistent_snapshot = consistent_snapshot
-        self.keys = keys
-        self.roles = roles
+        additional_kwarg = {
+            'consistent_snapshot': consistent_snapshot,
+            'keys': keys,
+            'roles': roles
+        }
+        super().__init__(_type, version, spec_version, expires, additional_kwarg)
 
     @classmethod
     def from_dict(cls, root_dict: Mapping[str, Any]) -> 'Root':
@@ -454,12 +502,14 @@ class Timestamp(Signed):
             }
 
     """
+    meta: Mapping[str, Any]
     def __init__(
             self, _type: str, version: int, spec_version: str,
             expires: datetime, meta: Mapping[str, Any]) -> None:
-        super().__init__(_type, version, spec_version, expires)
+
         # TODO: Add class for meta
-        self.meta = meta
+        additional_kwarg = {'meta': meta}
+        super().__init__(_type, version, spec_version, expires, additional_kwarg)
 
     @classmethod
     def from_dict(cls, timestamp_dict: Mapping[str, Any]) -> 'Timestamp':
@@ -513,12 +563,14 @@ class Snapshot(Signed):
             }
 
     """
+    meta: Mapping[str, Any]
     def __init__(
             self, _type: str, version: int, spec_version: str,
             expires: datetime, meta: Mapping[str, Any]) -> None:
-        super().__init__(_type, version, spec_version, expires)
+
         # TODO: Add class for meta
-        self.meta = meta
+        additional_kwarg = {'meta': meta}
+        super().__init__(_type, version, spec_version, expires, additional_kwarg)
 
     @classmethod
     def from_dict(cls, snapshot_dict: Mapping[str, Any]) -> 'Snapshot':
@@ -603,6 +655,8 @@ class Targets(Signed):
             }
 
     """
+    targets: Mapping[str, Any]
+    delegations: Mapping[str, Any]
     # TODO: determine an appropriate value for max-args and fix places where
     # we violate that. This __init__ function takes 7 arguments, whereas the
     # default max-args value for pylint is 5
@@ -612,10 +666,13 @@ class Targets(Signed):
         expires: datetime, targets: Mapping[str, Any],
         delegations: Mapping[str, Any]
     ) -> None:
-        super().__init__(_type, version, spec_version, expires)
-        # TODO: Add class for meta
-        self.targets = targets
-        self.delegations = delegations
+
+        # TODO: Add class for targets and delegations.
+        additional_kwarg = {
+            'targets': targets,
+            'delegations': delegations
+        }
+        super().__init__(_type, version, spec_version, expires, additional_kwarg)
 
     @classmethod
     def from_dict(cls, targets_dict: Mapping[str, Any]) -> 'Targets':
