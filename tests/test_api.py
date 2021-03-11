@@ -337,13 +337,27 @@ class TestMetadata(unittest.TestCase):
         root = Metadata.from_file(root_path)
 
         for val in [212, '', '1.11', None, '2', True]:
+
             # Verify that "Signed.validate_spec_version()" is called and returns
             # a ValueError on wrong input.
+            # The error is raised when we assign new value to the spec_version
+            # no matter if it's with a function or directly.
             with self.assertRaises(ValueError):
                 root.signed.change_spec_version(val)
-
             with self.assertRaises(ValueError):
                 root.signed.spec_version = val
+
+        # Pydantic doesn't have a strict mode.
+        # Meaning it will try to cast the passed value to the required type.
+        for val in ["", "HI", None, root]:
+            # Raises an exception because it can't cast them to an int.
+            with self.assertRaises(ValueError):
+                root.signed.test_validation(val)
+
+        # When it succeds in the cast to an int, no error or warning is raised.
+        root.signed.test_validation("212")
+        root.signed.test_validation(True)
+
 
 # Run unit test.
 if __name__ == '__main__':

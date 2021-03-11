@@ -343,9 +343,13 @@ class Signed(pydantic.BaseModel):
         return spec_version
 
 
-    @pydantic.validate_arguments()
     def change_spec_version(self, new_spec_ver: str):
         self.spec_version = new_spec_ver
+
+
+    @pydantic.validate_arguments()
+    def test_validation(self, arg1: int):
+        print(arg1)
 
 
     @staticmethod
