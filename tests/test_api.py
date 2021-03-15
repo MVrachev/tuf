@@ -354,10 +354,29 @@ class TestMetadata(unittest.TestCase):
             with self.assertRaises(ValueError):
                 root.signed.test_validation(val)
 
-        # When it succeds in the cast to an int, no error or warning is raised.
+        # When it succeeds in the cast to an int, no error or warning is raised.
         root.signed.test_validation("212")
         root.signed.test_validation(True)
 
+        # But you can use "StrictStr", "StrictBytes", "StrictInt", "StrictFloat",
+        # and "StrictBool" as strict types which forbids the casting
+        # See: https://pydantic-docs.helpmanual.io/usage/types/#strict-types
+        for val in ['', '1.11', None, '2', True, False, root]:
+            # Raises an exception because "val" is not from type "int"
+            with self.assertRaises(ValueError):
+                root.signed.test_strict_int_validation(val)
+
+        for val in [1, 0, -1, None, True, False, root]:
+            # Raises an exception because "val" is not from type "str"
+            with self.assertRaises(ValueError):
+                root.signed.test_strict_str_validation(val)
+
+        # Does not raise an exception when calling with the right type:
+        root.signed.test_strict_int_validation(300)
+        root.signed.test_strict_int_validation(0)
+        root.signed.test_strict_int_validation(-10)
+        root.signed.test_strict_str_validation("")
+        root.signed.test_strict_str_validation("HI")
 
 # Run unit test.
 if __name__ == '__main__':

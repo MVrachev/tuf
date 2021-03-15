@@ -352,6 +352,14 @@ class Signed(pydantic.BaseModel):
         print(arg1)
 
 
+    @pydantic.validate_arguments()
+    def test_strict_int_validation(self, arg1: pydantic.StrictInt):
+        print(arg1)
+
+    @pydantic.validate_arguments()
+    def test_strict_str_validation(self, arg1: pydantic.StrictStr):
+        print(arg1)
+
     @staticmethod
     def _common_fields_from_dict(signed_dict: Mapping[str, Any]) -> list:
         """Returns common fields of 'Signed' instances from the passed dict
