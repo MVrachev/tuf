@@ -15,6 +15,8 @@ import tempfile
 import unittest
 import copy
 
+import marshmallow
+
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
@@ -329,6 +331,33 @@ class TestMetadata(unittest.TestCase):
         targets.signed.update(filename, fileinfo)
         # Verify that data is updated
         self.assertEqual(targets.signed.targets[filename], fileinfo)
+
+
+    def test_validation(self):
+        root_path = os.path.join(
+                self.repo_dir, 'metadata', 'root.json')
+        root = Metadata.from_file(root_path)
+
+        for val in [212, '', '1.11', None, '2', True]:
+
+            with self.assertRaises(marshmallow.ValidationError):
+                # We correctly validate that "val" is not into the correct
+                # format required from "validate_spec_version"
+                root.signed.change_spec_version(val)
+
+            with self.assertRaises(marshmallow.ValidationError):
+                # We see that the built-in validation functions work well too.
+                root.signed.change_type(val)
+        
+            # but because there is no option to enforce assigment validation
+            # in marshmallow, this will pass:
+            root.signed.spec_version = val
+        
+        # In those examples the validation passes as expected.
+        root.signed.change_spec_version("1.1.3")
+        for val in ["root", "snapshot", "targets", "timestamp"]:
+            root.signed.change_type(val)
+
 
 # Run unit test.
 if __name__ == '__main__':

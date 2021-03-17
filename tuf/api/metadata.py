@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Mapping, Optional
 
 import tempfile
+import marshmallow
 
 from securesystemslib.keys import verify_signature
 from securesystemslib.util import persist_temp_file
@@ -274,7 +275,23 @@ class Metadata():
             signed_serializer.serialize(self.signed))
 
 
-class Signed:
+# Validation functions can be reused because they can be placed outside a class.
+def validate_spec_version(spec_version:str):
+    spec_version_split = spec_version.split('.')
+    if len(spec_version_split) != 3:
+        raise marshmallow.ValidationError(f'spec_version should be in '
+            f'semantic versioning format.')
+
+    spec_major_version = int(spec_version_split[0])
+    code_spec_version_split = tuf.SPECIFICATION_VERSION.split('.')
+    code_spec_major_version = int(code_spec_version_split[0])
+
+    if spec_major_version != code_spec_major_version:
+        raise marshmallow.ValidationError(f'version must be ,'
+            f'{code_spec_major_version} got {spec_major_version}')
+
+
+class Signed(marshmallow.Schema):
     """A base class for the signed part of TUF metadata.
 
     Objects with base class Signed are usually included in a Metadata object
@@ -289,6 +306,15 @@ class Signed:
         expires: The metadata expiration datetime object.
 
     """
+
+    # You can use marshmallow built-in validation functions
+    _type = marshmallow.fields.Str(strict=True, validate=marshmallow.validate.OneOf(
+        ["root", "snapshot", "targets", "timestamp"]
+    ))
+    # "strict = True" forbids casting when validating the class attributes.
+    version = marshmallow.fields.Int(strict=True)
+    spec_version = marshmallow.fields.Str(strict=True, validate=validate_spec_version)
+    expires = datetime
     # NOTE: Signed is a stupid name, because this might not be signed yet, but
     # we keep it to match spec terminology (I often refer to this as "payload",
     # or "inner metadata")
@@ -296,15 +322,58 @@ class Signed:
             self, _type: str, version: int, spec_version: str,
             expires: datetime) -> None:
 
+        # That is a required flag telling marshmallow what it should do if it
+        # encounters unknown fields.
+        super().__init__(unknown='EXCLUDE')
+
+        self.validate({
+            "_type": _type,
+            "version": version,
+            "spec_version": spec_version,
+        })
         self._type = _type
         self.version = version
         self.spec_version = spec_version
+
         self.expires = expires
 
         # TODO: Should we separate data validation from constructor?
         if version < 0:
             raise ValueError(f'version must be < 0, got {version}')
         self.version = version
+
+
+    def validate(self, kwargs: Dict) -> None:
+        """Override super.validate() to raise ValidationError if exceptions
+        during validation are more than 0."""
+
+        errors = super().validate(kwargs)
+        if len(errors) > 0:
+            raise marshmallow.ValidationError(f"validation error(s): {errors}")
+
+
+    # Validation functions can be placed inside a class too.
+    @marshmallow.validates("version")
+    def _validate_version(self, version) -> None:
+        if version < 0:
+            raise marshmallow.ValidationError(f"version should be a positive integer")
+
+
+    def change_spec_version(self, new_spec_ver: str):
+        # If you want to validate the input, you would have to explicitly
+        # call the validate method yourself...
+        self.validate({
+            "spec_version": new_spec_ver
+            }
+        )
+        self.spec_version = new_spec_ver
+
+
+    def change_type(self, new_type):
+        self.validate({
+            '_type': new_type
+        })
+
 
     @staticmethod
     def _common_fields_from_dict(signed_dict: Mapping[str, Any]) -> list:
