@@ -22,6 +22,7 @@ from tests import utils
 
 import tuf.exceptions
 from tuf.api.metadata import (
+    Signed,
     Metadata,
     Snapshot,
     Timestamp,
@@ -256,10 +257,10 @@ class TestMetadata(unittest.TestCase):
         # Test whether dateutil.relativedelta works, this provides a much
         # easier to use interface for callers
         delta = relativedelta(days=1)
-        timestamp.signed.bump_expiration(delta)
+        timestamp.signed.bump_expiration_relativedelta(delta)
         self.assertEqual(timestamp.signed.expires, datetime(2031, 1, 3, 0, 0))
         delta = relativedelta(years=5)
-        timestamp.signed.bump_expiration(delta)
+        timestamp.signed.bump_expiration_relativedelta(delta)
         self.assertEqual(timestamp.signed.expires, datetime(2036, 1, 3, 0, 0))
 
         hashes = {'sha256': '0ae9664468150a9aa1e7f11feecb32341658eb84292851367fea2da88e8a58dc'}
@@ -329,6 +330,59 @@ class TestMetadata(unittest.TestCase):
         targets.signed.update(filename, fileinfo)
         # Verify that data is updated
         self.assertEqual(targets.signed.targets[filename], fileinfo)
+
+
+    def test_validation(self):
+        root_path = os.path.join(
+                self.repo_dir, 'metadata', 'root.json')
+        root = Metadata.from_file(root_path)
+
+        # ------------- typeguard -----------------
+
+        for val in [212, '', '1.11', None, '2', True]:
+            # Raise a TypeError exception
+            with self.assertRaises(TypeError):
+                root.signed.bump_expiration(val)
+
+        # It also validates the return type when annotation for it is provided:
+        with self.assertRaises(TypeError):
+            root.signed.add(3, 4)
+
+        # By adding a @typeguard.typechecked decorator above a class definition
+        # you are marking each function in it for type checking.
+        # You can ignore validation for private functions by using
+        # a @typeguard.typeguard_ignore decorator above the function.
+        # This decorator will be released in the next typeguard release.
+
+        # ------------- decorators -----------------
+
+        data = {
+            '_type': 'snapshot',
+            'spec_version': '1.2.3',
+            'expires': datetime.now(),
+            'version': 3
+        }
+        # Validation happens on initialization and
+        # during assigment
+        s = Signed(**data)
+
+        # _type validation checks that the type is one of our expected roles
+        data['_type'] = 'wrong'
+        with self.assertRaises(ValueError):
+            s = Signed(**data)
+        data['_type'] = 'snapshot'
+
+        # spec_version should be a specific string in sem format
+        # and be the same major version as the current tuf version
+        for val in ['', '1.11', '2', '0.1.1']:
+            with self.assertRaises(ValueError):
+                s.spec_version = val
+
+        # For expires I am using basic isistance check for now.
+
+        # Version should be an int above 0.
+        with self.assertRaises(ValueError):
+            s.version = -1
 
 # Run unit test.
 if __name__ == '__main__':

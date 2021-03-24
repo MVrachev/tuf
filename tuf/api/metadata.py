@@ -16,7 +16,9 @@ available in the class model.
 
 """
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from typing import Any, Dict, Mapping, Optional
+import typeguard
 
 import tempfile
 
@@ -31,7 +33,7 @@ from tuf.api.serialization import (MetadataSerializer, MetadataDeserializer,
 
 import tuf.formats
 import tuf.exceptions
-
+import tuf.api.types as types
 
 class Metadata():
     """A container for signed TUF metadata.
@@ -274,6 +276,28 @@ class Metadata():
             signed_serializer.serialize(self.signed))
 
 
+def is_spec_version_valid(spec_version:str):
+
+    spec_version_split = spec_version.split('.')
+    if len(spec_version_split) != 3:
+        raise ValueError(f'spec_version should be in '
+            f'semantic versioning format.')
+
+    spec_major_version = int(spec_version_split[0])
+    code_spec_version_split = tuf.SPECIFICATION_VERSION.split('.')
+    code_spec_major_version = int(code_spec_version_split[0])
+
+    if spec_major_version != code_spec_major_version:
+        raise ValueError(f'version must be ,'
+            f'{code_spec_major_version} got {spec_major_version}')
+
+    return True
+
+
+# When using @typeguard.typechecked above a class every function in the
+# class will be type checked with exception to those with the special
+# @typeguard_ignore decorator (the next release of typeguard will introduce it.)
+@typeguard.typechecked
 class Signed:
     """A base class for the signed part of TUF metadata.
 
@@ -292,6 +316,11 @@ class Signed:
     # NOTE: Signed is a stupid name, because this might not be signed yet, but
     # we keep it to match spec terminology (I often refer to this as "payload",
     # or "inner metadata")
+    _type = types.OneOf('root', 'snapshot', 'targets', 'timestamp')
+    version = types.Integer(minvalue=0)
+    spec_version = types.String(minsize=5, predicate=is_spec_version_valid)
+    expires = types.DateTime()
+
     def __init__(
             self, _type: str, version: int, spec_version: str,
             expires: datetime) -> None:
@@ -301,10 +330,6 @@ class Signed:
         self.spec_version = spec_version
         self.expires = expires
 
-        # TODO: Should we separate data validation from constructor?
-        if version < 0:
-            raise ValueError(f'version must be < 0, got {version}')
-        self.version = version
 
     @staticmethod
     def _common_fields_from_dict(signed_dict: Mapping[str, Any]) -> list:
@@ -343,9 +368,19 @@ class Signed:
         """Increments the expires attribute by the passed timedelta. """
         self.expires += delta
 
+    # Added because typeguard complains that relativedelta is not timedelta.
+    # This was catched because of the unit tests.
+    def bump_expiration_relativedelta(self, delta: relativedelta =
+            relativedelta(days=1)) -> None:
+        """Increments the expires attribute by the passed relativedelta. """
+        self.expires += delta
+
     def bump_version(self) -> None:
         """Increments the metadata version number by 1."""
         self.version += 1
+
+    def add(self, a: int, b: int) -> int:
+        return str(a) + str(b)
 
 
 class Root(Signed):
