@@ -327,6 +327,12 @@ def _validate_version(version: int) -> None:
         raise ValueError(f"version must be > 0, got {version}")
 
 
+def _validate_expires(expires: datetime) -> None:
+    """Validate the EXPIRES Signed attribute."""
+    if not isinstance(expires, datetime):
+        raise TypeError("Expected expires to be a datetime.datetime object!")
+
+
 class Signed:
     """A base class for the signed part of TUF metadata.
 
@@ -375,6 +381,15 @@ class Signed:
     def version(self, value):
         _validate_version(value)
         self._version = value
+
+    @property
+    def expires(self):
+        return self._expires
+
+    @expires.setter
+    def version(self, value):
+        _validate_expires(value)
+        self._expires = value
 
     # NOTE: Signed is a stupid name, because this might not be signed yet, but
     # we keep it to match spec terminology (I often refer to this as "payload",
