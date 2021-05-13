@@ -301,6 +301,7 @@ class Metadata:
 
 
 def _validate_semantic_versioning(value: str) -> None:
+    """Validate that the SPEC_VERSION Signed attribute"""
     split = value.split(".")
     if len(split) != 3:
         raise ValueError(
@@ -314,6 +315,16 @@ def _validate_semantic_versioning(value: str) -> None:
 
     if split[0] != code_spec_version_split[0]:
         raise ValueError("Not supported major spec version!")
+
+
+def _validate_version(version: int) -> None:
+    """Validate the VERSION Signed attribute."""
+    if not isinstance(version, int):
+        raise TypeError("Expected version to be an integer")
+    if isinstance(version, (float, bool)):
+        raise TypeError("Expected version to be an integer, not float or bool!")
+    if version <= 0:
+        raise ValueError(f"version must be > 0, got {version}")
 
 
 class Signed:
@@ -355,6 +366,15 @@ class Signed:
         except AttributeError:
             _validate_semantic_versioning(value)
             self._spec_version = value
+
+    @property
+    def version(self):
+        return self._version
+
+    @version.setter
+    def version(self, value):
+        _validate_version(value)
+        self._version = value
 
     # NOTE: Signed is a stupid name, because this might not be signed yet, but
     # we keep it to match spec terminology (I often refer to this as "payload",
