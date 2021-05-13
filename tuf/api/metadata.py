@@ -24,6 +24,7 @@ from securesystemslib.signer import Signature, Signer
 from securesystemslib.storage import FilesystemBackend, StorageBackendInterface
 from securesystemslib.util import persist_temp_file
 
+import tuf
 from tuf import exceptions, formats
 from tuf.api.serialization import (
     MetadataDeserializer,
@@ -299,6 +300,22 @@ class Metadata:
         )
 
 
+def _validate_semantic_versioning(value: str) -> None:
+    split = value.split(".")
+    if len(split) != 3:
+        raise ValueError(
+            "spec_version should be in a semantic versioning format."
+        )
+    if not all(el.isdigit() for el in split):
+        raise ValueError(
+            "spec_version needs three numbers to conform a semantic versioning"
+        )
+    code_spec_version_split = tuf.SPECIFICATION_VERSION.split(".")
+
+    if split[0] != code_spec_version_split[0]:
+        raise ValueError("Not supported major spec version!")
+
+
 class Signed:
     """A base class for the signed part of TUF metadata.
 
@@ -326,6 +343,18 @@ class Signed:
     @property
     def type(self):
         return self._signed_type
+
+    @property
+    def spec_version(self):
+        return self._spec_version
+
+    @spec_version.setter
+    def spec_version(self, value):
+        try:
+            self._spec_version
+        except AttributeError:
+            _validate_semantic_versioning(value)
+            self._spec_version = value
 
     # NOTE: Signed is a stupid name, because this might not be signed yet, but
     # we keep it to match spec terminology (I often refer to this as "payload",
