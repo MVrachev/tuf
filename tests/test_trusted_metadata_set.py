@@ -68,6 +68,10 @@ class TestTrustedMetadataSet(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.trusted_set.root_update_finished()
 
+        # Update root after a previous successful root update
+        with self.assertRaises(RuntimeError):
+            self.trusted_set.update_root(self.metadata["root"])
+
         # Update snapshot before timestamp
         with self.assertRaises(RuntimeError):
             self.trusted_set.update_snapshot(self.metadata["snapshot"])
@@ -165,13 +169,6 @@ class TestTrustedMetadataSet(unittest.TestCase):
     def test_update_root_new_root_ver_same_as_trusted_root_ver(self):
         with self.assertRaises(exceptions.ReplayedMetadataError):
             self.trusted_set.update_root(self.metadata["root"])
-
-    def test_update_root_after_successful_root_update(self):
-        # if _root_update_finished, then fail when calling update_root
-        self.trusted_set.root_update_finished()
-        with self.assertRaises(RuntimeError):
-            self.trusted_set.update_root(self.metadata["root"])
-        self.trusted_set._root_update_finished = False
 
     def test_root_update_finished_expired(self):
         # call root_update_finished when trusted root has expired
