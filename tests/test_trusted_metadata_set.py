@@ -95,6 +95,11 @@ class TestTrustedMetadataSet(unittest.TestCase):
             )
 
         self.trusted_set.update_targets(self.metadata["targets"])
+
+        # Update snapshot after sucessful targets update
+        with self.assertRaises(RuntimeError):
+            self.trusted_set.update_snapshot(self.metadata["snapshot"])
+
         self.trusted_set.update_delegated_targets(
             self.metadata["role1"], "role1", "targets"
         )
