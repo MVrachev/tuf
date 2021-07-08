@@ -110,6 +110,10 @@ class TestTrustedMetadataSet(unittest.TestCase):
         with self.assertRaises(exceptions.RepositoryError):
             TrustedMetadataSet(json.dumps(root.to_dict()).encode())
 
+        # update_root called with the wrong metadata type
+        with self.assertRaises(exceptions.RepositoryError):
+            self.trusted_set.update_root(self.metadata["snapshot"])
+
         self.trusted_set.root_update_finished()
 
         top_level_md = [
@@ -118,11 +122,15 @@ class TestTrustedMetadataSet(unittest.TestCase):
             (self.metadata["targets"], self.trusted_set.update_targets),
         ]
         for metadata, update_func in top_level_md:
+            md = Metadata.from_bytes(metadata)
+            if md.signed.type == "snapshot":
+                # timestamp hashes and length intervene when testing snapshot
+                self.trusted_set.timestamp.signed.meta["snapshot.json"].hashes = None
+                self.trusted_set.timestamp.signed.meta["snapshot.json"].length = None
             # metadata is not json
             with self.assertRaises(exceptions.RepositoryError):
                 update_func(b"")
             # metadata is invalid
-            md = Metadata.from_bytes(metadata)
             md.signed.version += 1
             with self.assertRaises(exceptions.RepositoryError):
                 update_func(json.dumps(md.to_dict()).encode())
@@ -228,23 +236,6 @@ class TestTrustedMetadataSet(unittest.TestCase):
             modified_hashes[algo] = observed_hash
         return modified_hashes
 
-    def test_update_snapshot_new_snapshot_invalid_type(self):
-        self._setup_update_snapshot_or_timestamp_test()
-        # new_snapshot data with invalid targets type
-        invalid_type_data = json.loads(self.metadata["snapshot"])
-        invalid_type_data["signed"]["_type"] = "targets"
-        invalid_type_data["signed"]["targets"] = {}
-        invalid_type_data = json.dumps(invalid_type_data).encode()
-        timestamp_meta = self.trusted_set.timestamp.signed.meta["snapshot.json"]
-        true_hashes = timestamp_meta.hashes or {}
-        modified_hashes = self._calculate_modified_hashes(
-            true_hashes, invalid_type_data
-        )
-        self.trusted_set.timestamp.signed.meta["snapshot.json"].hashes = modified_hashes
-
-        with self.assertRaises(exceptions.RepositoryError):
-            self.trusted_set.update_snapshot(invalid_type_data)
-
     def test_update_snapshot_after_targets_updated(self):
         self._setup_update_snapshot_or_timestamp_test()
         # cannot update snapshot after targets update completes or targets != None
@@ -252,20 +243,6 @@ class TestTrustedMetadataSet(unittest.TestCase):
         self.trusted_set._trusted_set["targets"] = targets_obj
         with self.assertRaises(RuntimeError):
             self.trusted_set.update_snapshot(self.metadata["snapshot"])
-
-    def test_update_snapshot_with_invalid_json(self):
-        self._setup_update_snapshot_or_timestamp_test()
-        #  Deserialization error - failed to decode the new_snapshot JSON.
-        timestamp_meta = self.trusted_set.timestamp.signed.meta["snapshot.json"]
-        true_hashes = timestamp_meta.hashes or {}
-
-        modified_hashes = self._calculate_modified_hashes(
-            true_hashes, b'{""sig": }'
-        )
-        self.trusted_set.timestamp.signed.meta["snapshot.json"].hashes = modified_hashes
-        with self.assertRaises(exceptions.RepositoryError):
-            self.trusted_set.update_snapshot(b'{""sig": }')
-        self.trusted_set.timestamp.signed.meta["snapshot.json"].hashes = true_hashes
 
     def test_update_snapshot_cannot_verify_snapshot_with_threshold(self):
         self._setup_update_snapshot_or_timestamp_test()
