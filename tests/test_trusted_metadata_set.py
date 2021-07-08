@@ -132,19 +132,6 @@ class TestTrustedMetadataSet(unittest.TestCase):
 
             update_func(metadata)
 
-
-    def test_verify_with_threshold_wrong_delegator(self):
-        delegated_role = Metadata.from_bytes(self.metadata["role1"])
-        timestamp = Metadata.from_bytes(self.metadata["timestamp"])
-        with self.assertRaises(ValueError):
-            verify_with_threshold(timestamp, "role1", delegated_role)
-
-    def test_verify_with_threshold_non_existent_role_name(self):
-        delegated_role = Metadata.from_bytes(self.metadata["role1"])
-        targets = Metadata.from_bytes(self.metadata["targets"])
-        with self.assertRaises(ValueError):
-            verify_with_threshold(targets, "foo", delegated_role)
-
     def test_update_root_invalid_type(self):
         # new_root data with invalid snapshot type
         invalid_type_data = json.loads(self.metadata["root"])
