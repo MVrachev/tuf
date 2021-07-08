@@ -36,10 +36,11 @@ class TestTrustedMetadataSet(unittest.TestCase):
         keystore_dir = os.path.join(os.getcwd(), 'repository_data', 'keystore')
         cls.keystore = {}
         for role in ['delegation', 'snapshot', 'targets', 'timestamp']:
-            cls.keystore[role] = import_ed25519_privatekey_from_file(
+            key_dict = import_ed25519_privatekey_from_file(
                 os.path.join(keystore_dir, role + '_key'),
                 password="password"
             )
+            cls.keystore[role] = SSlibSigner(key_dict)
 
     def setUp(self) -> None:
         self.trusted_set = TrustedMetadataSet(self.metadata["root"])
@@ -178,8 +179,7 @@ class TestTrustedMetadataSet(unittest.TestCase):
         role:str,
         metadata_obj: Metadata
     ) -> Dict[str, Any]:
-        key_dict = self.keystore[role]
-        sslib_signer = SSlibSigner(key_dict)
+        sslib_signer = self.keystore[role]
         signature = metadata_obj.sign(sslib_signer)
         return signature.to_dict()
 
