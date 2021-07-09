@@ -158,6 +158,16 @@ class TestMetadata(unittest.TestCase):
             os.remove(path_2)
 
 
+    def test_to_from_bytes(self):
+        for metadata in ["root", "snapshot", "timestamp", "targets"]:
+            path = os.path.join(self.repo_dir, 'metadata', metadata + '.json')
+            with open(path, 'rb') as f:
+                metadata_bytes = f.read()
+            metadata_obj = Metadata.from_bytes(metadata_bytes)
+            # Comparate that from_bytes/to_bytes doesn't change the content.
+            self.assertEqual(metadata_obj.to_bytes(), metadata_bytes)
+
+
     def test_sign_verify(self):
         root_path = os.path.join(self.repo_dir, 'metadata', 'root.json')
         root:Root = Metadata.from_file(root_path).signed

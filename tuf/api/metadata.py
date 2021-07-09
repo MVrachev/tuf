@@ -182,6 +182,20 @@ class Metadata:
 
         return deserializer.deserialize(data)
 
+    def to_bytes(
+        self, serializer: Optional[MetadataSerializer] = None
+    ) -> bytes:
+        """Return the bytes representation of self."""
+
+        if serializer is None:
+            # Use local scope import to avoid circular import errors
+            # pylint: disable=import-outside-toplevel
+            from tuf.api.serialization.json import JSONSerializer
+
+            serializer = JSONSerializer()
+
+        return serializer.serialize(self)
+
     def to_dict(self) -> Dict[str, Any]:
         """Returns the dict representation of self."""
 
