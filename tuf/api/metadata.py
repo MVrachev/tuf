@@ -933,9 +933,15 @@ class Snapshot(Signed):
         snapshot_dict["meta"] = meta_dict
         return snapshot_dict
 
-    # Modification.
-    def update(self, rolename: str, role_info: MetaFile) -> None:
-        """Assigns passed (delegated) targets role info to meta dict."""
+    def update_target_meta(self, rolename: str, role_info: MetaFile) -> None:
+        """Assigns passed (delegated) targets role info to meta dict.
+
+        Overrides existing information about rolename.
+
+        Args:
+            rolename: Name of the delegated target role.
+            role_info: MetaFile instance with information about a target.
+        """
         metadata_fn = f"{rolename}.json"
         self.meta[metadata_fn] = role_info
 

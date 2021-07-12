@@ -290,7 +290,7 @@ class TestMetadata(unittest.TestCase):
         self.assertNotEqual(
             snapshot.signed.meta['role1.json'].to_dict(), fileinfo.to_dict()
         )
-        snapshot.signed.update('role1', fileinfo)
+        snapshot.signed.update_target_meta('role1', fileinfo)
         self.assertEqual(
             snapshot.signed.meta['role1.json'].to_dict(), fileinfo.to_dict()
         )
