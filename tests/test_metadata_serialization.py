@@ -205,6 +205,21 @@ class TestSerialization(unittest.TestCase):
         metafile = MetaFile.from_dict(copy.copy(case_dict))
         self.assertDictEqual(case_dict, metafile.to_dict())
 
+    invalid_timestamp: DataSet = {
+        "no meta": '{ "_type": "timestamp", "spec_version": "1.0.0", "version": 1, "expires": "2030-01-01T00:00:00Z"}',
+        "empty meta":
+            '{ "_type": "timestamp", "spec_version": "1.0.0", "version": 1, "expires": "2030-01-01T00:00:00Z", "meta": {}}',
+        "meta with wrong key":
+            '{ "_type": "timestamp", "spec_version": "1.0.0", "version": 1, "expires": "2030-01-01T00:00:00Z", \
+            "meta": {"f.title": {"hashes": {"sha256" : "abc"}, "version": 1}}}'
+    }
+
+    @run_sub_tests_with_dataset(invalid_timestamp)
+    def test_invalid_timestamp_serialization(self, test_case_data: Dict[str, str]):
+        case_dict = json.loads(test_case_data)
+        with self.assertRaises(KeyError):
+            Timestamp.from_dict(copy.deepcopy(case_dict))
+
 
     valid_timestamps: DataSet = {
         "all": '{ "_type": "timestamp", "spec_version": "1.0.0", "version": 1, "expires": "2030-01-01T00:00:00Z", \

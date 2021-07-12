@@ -856,6 +856,23 @@ class Timestamp(Signed):
     _signed_type = "timestamp"
 
     @property
+    def meta(self):
+        return self._meta
+
+    @meta.setter
+    def meta(self, new_meta: Dict[str, MetaFile]):
+        if len(new_meta) != 1 or new_meta.get("snapshot.json") is None:
+            raise ValueError(
+                f"meta should contain information only about snapshot.json, "
+                f"instead got {new_meta}"
+            )
+        if not isinstance(new_meta["snapshot.json"], MetaFile):
+            raise TypeError(
+                'meta["snapshot.json"] should be from type MetaFile!'
+            )
+        self._meta = new_meta
+
+    @property
     def snapshot_meta(self):
         return self.meta["snapshot.json"]
 
