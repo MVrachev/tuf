@@ -1183,7 +1183,15 @@ class Targets(Signed):
             targets_dict["delegations"] = self.delegations.to_dict()
         return targets_dict
 
-    # Modification.
-    def update(self, filename: str, fileinfo: TargetFile) -> None:
-        """Assigns passed target file info to meta dict."""
-        self.targets[filename] = fileinfo
+    def update_target_meta(
+        self, targetname: str, targetinfo: TargetFile
+    ) -> None:
+        """Assigns passed target file info to meta dict with targetname key.
+
+        Overrides existing information about targetname.
+
+        Args:
+            targetname: Name of the target file.
+            targetinfo: TargetFile instance with information about a target.
+        """
+        self.targets[targetname] = targetinfo
