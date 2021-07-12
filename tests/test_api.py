@@ -328,7 +328,7 @@ class TestMetadata(unittest.TestCase):
         self.assertNotEqual(
             timestamp.signed.snapshot_meta.to_dict(), fileinfo.to_dict()
         )
-        timestamp.signed.update(fileinfo)
+        timestamp.signed.snapshot_meta = fileinfo
         self.assertEqual(
             timestamp.signed.snapshot_meta.to_dict(), fileinfo.to_dict()
         )

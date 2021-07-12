@@ -889,11 +889,6 @@ class Timestamp(Signed):
         res_dict["meta"] = {"snapshot.json": self.snapshot_meta.to_dict()}
         return res_dict
 
-    # Modification.
-    def update(self, snapshot_meta: MetaFile) -> None:
-        """Assigns passed info about snapshot metadata to meta dict."""
-        self.snapshot_meta = snapshot_meta
-
 
 class Snapshot(Signed):
     """A container for the signed part of snapshot metadata.
